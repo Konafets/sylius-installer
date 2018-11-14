@@ -1,0 +1,17 @@
+{
+    "name": "konafets/sylius-installer",
+    "description": "Installs Sylius and create plugin skeleton",
+    "require": {
+        "symfony/console": "^4.1",
+        "symfony/filesystem": "^4.1",
+        "symfony/process": "^4.1",
+        "ext-zip": "*"
+    },
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Stefano Kowalke",
+            "email": "info@arroba-it.de"
+        }
+    ]
+}
