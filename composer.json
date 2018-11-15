@@ -15,12 +15,15 @@
         }
     },
     "require": {
-        "ext-zip": "*",
+        "ext-json": "*",
         "symfony/console": "^4.1",
         "symfony/filesystem": "^4.1",
-        "symfony/process": "^4.1"
+        "symfony/process": "^4.1",
+        "nadar/php-composer-reader": "^1.0",
+        "symfony/finder": "^4.1",
+        "anahkiasen/underscore-php": "^2.0"
     },
     "bin": [
-        "sylius"
+        "sylius.php"
     ]
 }
