@@ -56,6 +56,12 @@ class CreatePluginSkeletonCommand extends Command
             ]);
     }
 
+    protected function initialize(InputInterface $input, OutputInterface $output)
+    {
+        $this->printWelcomeMessage($output);
+        $output->writeln('');
+    }
+
     /**
      * @param InputInterface $input
      * @param OutputInterface $output
@@ -64,10 +70,6 @@ class CreatePluginSkeletonCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $output->writeln('<bg=green>                                    </>');
-        $output->writeln('<bg=green;fg=black>Welcome to Sylius Plugin Kickstarter</>');
-        $output->writeln('<bg=green>                                    </>');
-
         $directory = $this->getPath($input);
 
         if (! $input->getOption('force')) {
@@ -131,6 +133,9 @@ class CreatePluginSkeletonCommand extends Command
 
     protected function interact(InputInterface $input, OutputInterface $output)
     {
+        $output->writeln('<comment>We will guide you trough the installation.</comment>');
+        $output->writeln('');
+
         /** @var QuestionHelper $questionHelper */
         $dialog = $this->getHelper('question');
 
@@ -331,4 +336,15 @@ class CreatePluginSkeletonCommand extends Command
             );
         }
     }
+
+    /**
+     * @param OutputInterface $output
+     */
+    protected function printWelcomeMessage(OutputInterface $output) : void
+    {
+        $output->writeln('<bg=green>                                        </>');
+        $output->writeln('<bg=green;fg=black>  Welcome to Sylius Plugin Kickstarter  </>');
+        $output->writeln('<bg=green>                                        </>');
+    }
+
 }
