@@ -24,6 +24,6 @@
         "anahkiasen/underscore-php": "^2.0"
     },
     "bin": [
-        "sylius.php"
+        "sylius"
     ]
 }
