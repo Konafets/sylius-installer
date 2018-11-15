@@ -47,9 +47,9 @@ class CreatePluginSkeletonCommand extends Command
             ->setName('new:plugin')
             ->setDescription('Creates the plugin skeleton')
             ->setDefinition([
-                new InputOption('name', null, InputOption::VALUE_REQUIRED, 'Name of the plugin'),
+                new InputOption('package-name', 'pn', InputOption::VALUE_REQUIRED, 'Name of the package'),
                 new InputOption('description', 'd', InputOption::VALUE_REQUIRED, 'The description of your plugin'),
-                //new InputOption('author', InputOption::VALUE_REQUIRED, 'Author name of the plugin'),
+                new InputOption('author', 'a', InputOption::VALUE_REQUIRED, 'Author name of the plugin'),
                 //new InputOption('license', 'l', InputOption::VALUE_REQUIRED, 'License of package'),
                 new InputOption('dev', null, InputOption::VALUE_NONE, 'Installs the latest "development" release'),
                 new InputOption('force', 'f', InputOption::VALUE_NONE, 'Forces install even if the directory already exists'),
@@ -70,63 +70,19 @@ class CreatePluginSkeletonCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
-        $directory = $this->getPath($input);
+        $directory = $this->makePluginFolderName();
 
         if (! $input->getOption('force')) {
             $this->verifyPluginDoesntExist($directory);
         }
 
-        $output->writeln('<info>Installing Plugin Skeleton...</info>');
-
         $composer = $this->findComposer();
 
-        $commands = [
-            $composer . ' create-project sylius/plugin-skeleton ' . $directory,
-        ];
+        $this->installPluginSkeleton($input, $output, $composer, $directory);
 
-        if ($input->getOption('no-ansi')) {
-            $commands = array_map(function ($value) {
-                return $value.' --no-ansi';
-            }, $commands);
-        }
-        if ($input->getOption('quiet')) {
-            $commands = array_map(function ($value) {
-                return $value.' --quiet';
-            }, $commands);
-        }
+        $this->customizeSkeleton($input, $output, $directory);
 
-        $process = new Process(implode(' && ', $commands), null, null, null, null);
-
-        if ('\\' !== DIRECTORY_SEPARATOR && file_exists('/dev/tty') && is_readable('/dev/tty')) {
-            $process->setTty(true);
-        }
-
-        $process->run(function ($line) use ($output) {
-            $output->write($line);
-        });
-
-        $output->writeln('<info>Configure your plugin...</info>');
-
-        $this->customizeSkeleton($input, $directory);
-
-        $output->writeln('<info>Building assets...</info>');
-
-        $commands = [
-            $composer . ' dump-autoload --optimize',
-            '(cd tests/Application && yarn install)',
-            '(cd tests/Application && yarn build)',
-            '(cd tests/Application && bin/console assets:install public -e test)',
-        ];
-
-        $process = new Process(implode(' && ', $commands), $directory, null, null, null);
-
-        if ('\\' !== DIRECTORY_SEPARATOR && file_exists('/dev/tty') && is_readable('/dev/tty')) {
-            $process->setTty(true);
-        }
-
-        $process->run(function ($line) use ($output) {
-            $output->write($line);
-        });
+        $this->buildingAssets($input, $output, $composer, $directory);
 
         $output->writeln('<comment>Your plugin is ready in folder ' . $directory . '/</comment>');
     }
@@ -139,28 +95,42 @@ class CreatePluginSkeletonCommand extends Command
         /** @var QuestionHelper $questionHelper */
         $dialog = $this->getHelper('question');
 
-        if (!$name = $input->getOption('name')) {
+        if (!$packageName = $input->getOption('package-name')) {
             $question = new Question('Package name (<vendor>/<name>): ');
             $question->setValidator(function ($answer) {
-                if ( ! preg_match('{^[a-z0-9_.-]+/[a-z0-9_.-]+$}', $answer)) {
-                    throw new \InvalidArgumentException('The package name ' . $answer . ' is invalid, it should be lowercase and have a vendor name, a forward slash, and a package name, matching: [a-z0-9_.-]+/[a-z0-9_.-]+');
-                }
+                $this->validatePluginName($answer);
 
                 return $answer;
             });
             $question->setMaxAttempts(2);
-            $name = $dialog->ask($input, $output, $question);
+            $packageName = $dialog->ask($input, $output, $question);
         } else {
-            if (!preg_match('{^[a-z0-9_.-]+/[a-z0-9_.-]+$}', $name)) {
-                throw new \InvalidArgumentException(
-                    'The package name '.$name.' is invalid, it should be lowercase and have a vendor name, a forward slash, and a package name, matching: [a-z0-9_.-]+/[a-z0-9_.-]+'
-                );
-            }
+            $this->validatePluginName($packageName);
         }
 
-        $input->setOption('name', $name);
+        $input->setOption('package-name', $packageName);
 
-        if (! $name = $input->getOption('description')) {
+        list($this->vendor, $this->name) = $this->extractVendorAndPluginNameFromPackageName($packageName);
+
+        $self = $this;
+        if ( ! $input->getOption('author')) {
+            $question = new Question('Author (Jane Doe <jane.doe@sylius.com>), n to skip: ');
+            $question->setValidator(function ($answer) use ($self) {
+                if ($answer === 'n' || $answer === 'no') {
+                    return;
+                }
+
+                $author = $self->parseAuthorString($answer);
+
+                return sprintf('%s <%s>', $author['name'], $author['email']);
+            });
+
+            $question->setMaxAttempts(2);
+            $author = $dialog->ask($input, $output, $question);
+            $input->setOption('author', $author);
+        }
+
+        if (! $input->getOption('description')) {
             $question = new Question('Description: ');
             $description = $dialog->ask($input, $output, $question);
             $input->setOption('description', $description);
@@ -206,31 +176,33 @@ class CreatePluginSkeletonCommand extends Command
     /**
      * @param InputInterface $input
      * @param string $directory
+     * @param OutputInterface $output
      * @throws Exception
      */
-    private function customizeSkeleton(InputInterface $input, string $directory)
+    private function customizeSkeleton(InputInterface $input, OutputInterface $output, string $directory) : void
     {
+        $output->writeln('<info>Configure your plugin...</info>');
+
         $this->customizeComposerFile($input, $directory);
         $this->changeDummyPluginNameToCustomPluginName($directory);
         $this->renameClasses($directory);
     }
 
     /**
-     * @param InputInterface $input
      * @return string
      */
-    private function getPath(InputInterface $input) : string
+    private function makePluginFolderName() : string
     {
-        $name = $input->getOption('name');
-        list($vendor, $packageName) =  explode('/', $name);
+        return Strings::toPascalCase($this->vendor) . Strings::toPascalCase($this->name);
+    }
 
-        // TODO: Extract this to own function
-        $this->vendor = $vendor;
-        $this->name = $packageName;
-
-        $directory = Strings::toPascalCase($vendor) . Strings::toPascalCase($packageName);
-
-        return $directory;
+    /**
+     * @param string $packageName
+     * @return array
+     */
+    private function extractVendorAndPluginNameFromPackageName(string $packageName) : array
+    {
+        return explode('/', $packageName);
     }
 
     /**
@@ -249,7 +221,8 @@ class CreatePluginSkeletonCommand extends Command
 
         $composerFile = $reader->getContent();
 
-        $composerFile['name'] = $input->getOption('name');
+        $composerFile['name'] = $input->getOption('package-name');
+        $composerFile['authors'] = $this->formatAuthors($input->getOption('author'));
         $composerFile['description'] = $input->getOption('description');
         $composerFile['autoload']['psr-4'][$this->getNamespace() . '\\'] = 'src/';
         $composerFile['autoload']['psr-4']['Tests\\' . $this->getNamespace() . '\\'] = 'tests/';
@@ -338,6 +311,28 @@ class CreatePluginSkeletonCommand extends Command
     }
 
     /**
+     * @param InputInterface $input
+     * @param $commands
+     * @return array
+     */
+    protected function passOptionsToCommand(InputInterface $input, $commands) : array
+    {
+        if ($input->getOption('no-ansi')) {
+            $commands = array_map(function ($value) {
+                return $value . ' --no-ansi';
+            }, $commands);
+        }
+
+        if ($input->getOption('quiet')) {
+            $commands = array_map(function ($value) {
+                return $value . ' --quiet';
+            }, $commands);
+        }
+
+        return $commands;
+    }
+
+    /**
      * @param OutputInterface $output
      */
     protected function printWelcomeMessage(OutputInterface $output) : void
@@ -347,4 +342,125 @@ class CreatePluginSkeletonCommand extends Command
         $output->writeln('<bg=green>                                        </>');
     }
 
+    /**
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @param $composer
+     * @param $directory
+     */
+    protected function installPluginSkeleton(InputInterface $input, OutputInterface $output, $composer, $directory) : void
+    {
+        $output->writeln('<info>Installing Plugin Skeleton...</info>');
+
+        $commands = [
+            $composer . ' create-project sylius/plugin-skeleton ' . $directory,
+        ];
+
+        $commands = $this->passOptionsToCommand($input, $commands);
+
+        $process = new Process(implode(' && ', $commands), null, null, null, null);
+
+        if ('\\' !== DIRECTORY_SEPARATOR && file_exists('/dev/tty') && is_readable('/dev/tty')) {
+            $process->setTty(true);
+        }
+
+        $process->run(function ($line) use ($output) {
+            $output->write($line);
+        });
+    }
+
+    /**
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @param $composer
+     * @param $directory
+     */
+    protected function buildingAssets(InputInterface $input, OutputInterface $output, $composer, $directory) : void
+    {
+        $output->writeln('<info>Building assets...</info>');
+
+        $commands = [
+            $composer . ' dump-autoload --optimize', '(cd tests/Application && yarn install)', '(cd tests/Application && yarn build)', '(cd tests/Application && bin/console assets:install public -e test)',
+        ];
+
+        $commands = $this->passOptionsToCommand($input, $commands);
+
+        $process = new Process(implode(' && ', $commands), $directory, null, null, null);
+
+        if ('\\' !== DIRECTORY_SEPARATOR && file_exists('/dev/tty') && is_readable('/dev/tty')) {
+            $process->setTty(true);
+        }
+
+        $process->run(function ($line) use ($output) {
+            $output->write($line);
+        });
+    }
+
+    /**
+     * @param $packageName
+     */
+    protected function validatePluginName($packageName) : void
+    {
+        if ( ! preg_match('{^[a-z0-9_.-]+/[a-z0-9_.-]+$}', $packageName)) {
+            throw new \InvalidArgumentException('The package name ' . $packageName . ' is invalid, it should be lowercase and have a vendor name, a forward slash, and a package name, matching: [a-z0-9_.-]+/[a-z0-9_.-]+');
+        }
+
+        list($vendor, $name) = $this->extractVendorAndPluginNameFromPackageName($packageName);
+
+        if ( ! Strings::startsWith($name, 'sylius')) {
+            throw new \InvalidArgumentException('The plugin name ' . $name . ' is invalid, it should be start with "sylius"');
+        }
+
+        if ( ! Strings::endsWith($name, 'plugin')) {
+            throw new \InvalidArgumentException('The plugin name ' . $name . ' is invalid, it should be end with "plugin"');
+        }
+    }
+
+    /**
+     * @param string $author
+     * @return array
+     */
+    protected function formatAuthors(string $author) : array
+    {
+        return [$this->parseAuthorString($author)];
+    }
+
+    /**
+     * @param string $author
+     * @return array
+     */
+    private function parseAuthorString(string $author) : array
+    {
+        if (preg_match('/^(?P<name>[- .,\p{L}\p{N}\p{Mn}\'’"()]+) <(?P<email>.+?)>$/u', $author, $match)) {
+            if ($this->isValidEmail($match['email'])) {
+                return array(
+                    'name' => trim($match['name']),
+                    'email' => $match['email'],
+                );
+            }
+        }
+
+        throw new \InvalidArgumentException(
+            'Invalid author string.  Must be in the format: '.
+            'John Smith <john@example.com>'
+        );
+    }
+
+    /**
+     * @param string $email
+     * @return bool
+     */
+    protected function isValidEmail(string $email) : bool
+    {
+        // assume it's valid if we can't validate it
+        if (!function_exists('filter_var')) {
+            return true;
+        }
+        // php <5.3.3 has a very broken email validator, so bypass checks
+        if (PHP_VERSION_ID < 50303) {
+            return true;
+        }
+
+        return false !== filter_var($email, FILTER_VALIDATE_EMAIL);
+    }
 }
