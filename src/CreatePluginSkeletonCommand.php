@@ -7,6 +7,7 @@ use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\ConfirmationQuestion;
 use Symfony\Component\Console\Question\Question;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
@@ -70,6 +71,9 @@ class CreatePluginSkeletonCommand extends Command
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
+        /** @var QuestionHelper $questionHelper */
+        $dialog = $this->getHelper('question');
+
         $directory = $this->makePluginFolderName();
 
         if (! $input->getOption('force')) {
@@ -82,7 +86,28 @@ class CreatePluginSkeletonCommand extends Command
 
         $this->customizeSkeleton($input, $output, $directory);
 
-        $this->buildingAssets($input, $output, $composer, $directory);
+        $this->composerDumpAutoload($input, $output, $composer, $directory);
+
+        $question = new ConfirmationQuestion('Install and build assets? ', false);
+
+        if ($dialog->ask($input, $output, $question)) {
+            $this->buildingAssets($input, $output, $composer, $directory);
+        }
+
+        $question = new ConfirmationQuestion('Setup and create a SQLite database? ', false);
+        if ($dialog->ask($input, $output, $question)) {
+            $this->createSQLiteDatabase($input, $output, $directory);
+        }
+
+        $question = new ConfirmationQuestion('Load Fixtures into database? ', false);
+        if ($dialog->ask($input, $output, $question)) {
+            $this->loadFixtures($input, $output, $directory);
+        }
+
+        $question = new ConfirmationQuestion('Start the internal server? ', false);
+        if ($dialog->ask($input, $output, $question)) {
+            $this->startServer($input, $output, $directory);
+        }
 
         $output->writeln('<comment>Your plugin is ready in folder ' . $directory . '/</comment>');
     }
@@ -356,17 +381,7 @@ class CreatePluginSkeletonCommand extends Command
             $composer . ' create-project sylius/plugin-skeleton ' . $directory,
         ];
 
-        $commands = $this->passOptionsToCommand($input, $commands);
-
-        $process = new Process(implode(' && ', $commands), null, null, null, null);
-
-        if ('\\' !== DIRECTORY_SEPARATOR && file_exists('/dev/tty') && is_readable('/dev/tty')) {
-            $process->setTty(true);
-        }
-
-        $process->run(function ($line) use ($output) {
-            $output->write($line);
-        });
+        $this->executeProcess($input, $output, $commands, null);
     }
 
     /**
@@ -380,20 +395,12 @@ class CreatePluginSkeletonCommand extends Command
         $output->writeln('<info>Building assets...</info>');
 
         $commands = [
-            $composer . ' dump-autoload --optimize', '(cd tests/Application && yarn install)', '(cd tests/Application && yarn build)', '(cd tests/Application && bin/console assets:install public -e test)',
+            '(cd tests/Application && yarn install)',
+            '(cd tests/Application && yarn build)',
+            '(cd tests/Application && bin/console assets:install public -e test)',
         ];
 
-        $commands = $this->passOptionsToCommand($input, $commands);
-
-        $process = new Process(implode(' && ', $commands), $directory, null, null, null);
-
-        if ('\\' !== DIRECTORY_SEPARATOR && file_exists('/dev/tty') && is_readable('/dev/tty')) {
-            $process->setTty(true);
-        }
-
-        $process->run(function ($line) use ($output) {
-            $output->write($line);
-        });
+        $this->executeProcess($input, $output, $commands, $directory);
     }
 
     /**
@@ -462,5 +469,84 @@ class CreatePluginSkeletonCommand extends Command
         }
 
         return false !== filter_var($email, FILTER_VALIDATE_EMAIL);
+    }
+
+    /**
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @param string $composer
+     * @param string $directory
+     */
+    protected function composerDumpAutoload(InputInterface $input, OutputInterface $output, string $composer, string $directory) : void
+    {
+        $command = $composer . ' dump-autoload --optimize';
+        $this->executeProcess($input, $output, $command, $directory);
+    }
+
+    /**
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @param $commands
+     * @param $directory
+     */
+    protected function executeProcess(InputInterface $input, OutputInterface $output, $commands, ?string $directory) : void
+    {
+        $commands = is_array($commands) ? $commands : [$commands];
+
+        $commands = $this->passOptionsToCommand($input, $commands);
+
+        $process = new Process(implode(' && ', $commands), $directory, null, null, null);
+
+        if ('\\' !== DIRECTORY_SEPARATOR && file_exists('/dev/tty') && is_readable('/dev/tty')) {
+            $process->setTty(true);
+        }
+
+        $process->run(function ($line) use ($output) {
+            $output->write($line);
+        });
+    }
+
+    /**
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @param $directory
+     */
+    protected function createSQLiteDatabase(InputInterface $input, OutputInterface $output, $directory) : void
+    {
+        $applicationDirectory = $directory . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . 'Application' . DIRECTORY_SEPARATOR;
+        $this->filesystem->copy($applicationDirectory . '.env.dist', $applicationDirectory . '.env');
+
+        $finder = new Finder();
+        $finder->files()->in($applicationDirectory)->ignoreDotFiles(false)->name('.env');
+
+        foreach ($finder as $file) {
+            self::writeFile(['DATABASE_URL=mysql://root@127.0.0.1/sylius_%kernel.environment%?serverVersion=5.5'],
+                ["#DATABASE_URL=mysql://root@127.0.0.1/sylius_%kernel.environment%?serverVersion=5.5\nDATABASE_URL=sqlite:///%kernel.project_dir%/var/data.db"],
+                $file);
+        }
+
+        $commands = [
+            '(cd tests/Application && bin/console doctrine:database:create -e test)', '(cd tests/Application && bin/console doctrine:schema:create -e test)'
+        ];
+
+        $this->executeProcess($input, $output, $commands, $directory);
+    }
+
+    private function loadFixtures(InputInterface $input, OutputInterface $output, string $directory)
+    {
+        $commands = [
+            '(cd tests/Application && bin/console sylius:fixtures:load -e test)'
+        ];
+
+        $this->executeProcess($input, $output, $commands, $directory);
+    }
+
+    private function startServer(InputInterface $input, OutputInterface $output, string $directory)
+    {
+        $commands = [
+            '(cd tests/Application && bin/console server:run -d public -e test)'
+        ];
+
+        $this->executeProcess($input, $output, $commands, $directory);
     }
 }
