@@ -25,6 +25,5 @@
     },
     "bin": [
         "sylius"
-    ],
-    "minimum-stability": "stable"
+    ]
 }
