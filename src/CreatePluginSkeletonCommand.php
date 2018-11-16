@@ -15,7 +15,7 @@ use Symfony\Component\Finder\SplFileInfo;
 use Symfony\Component\Process\Process;
 use Underscore\Types\Strings;
 
-class CreatePluginSkeletonCommand extends Command
+final class CreatePluginSkeletonCommand extends Command
 {
 
     const ACME_NAMESPACE = 'Acme\SyliusExamplePlugin';
@@ -36,13 +36,14 @@ class CreatePluginSkeletonCommand extends Command
      *
      * @param string $name
      */
-    public function __construct(string $name = null) {
+    public function __construct(string $name = null)
+    {
         parent::__construct($name);
 
         $this->filesystem = new Filesystem();
     }
 
-    protected function configure()
+    protected function configure() : void
     {
         $this
             ->setName('new:plugin')
@@ -57,7 +58,11 @@ class CreatePluginSkeletonCommand extends Command
             ]);
     }
 
-    protected function initialize(InputInterface $input, OutputInterface $output)
+    /**
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     */
+    protected function initialize(InputInterface $input, OutputInterface $output) : void
     {
         $this->printWelcomeMessage($output);
         $output->writeln('');
@@ -69,7 +74,7 @@ class CreatePluginSkeletonCommand extends Command
      * @return int|null|void
      * @throws Exception
      */
-    protected function execute(InputInterface $input, OutputInterface $output)
+    protected function execute(InputInterface $input, OutputInterface $output) : void
     {
         /** @var QuestionHelper $questionHelper */
         $dialog = $this->getHelper('question');
@@ -91,7 +96,7 @@ class CreatePluginSkeletonCommand extends Command
         $question = new ConfirmationQuestion('Install and build assets? ', false);
 
         if ($dialog->ask($input, $output, $question)) {
-            $this->buildingAssets($input, $output, $composer, $directory);
+            $this->buildingAssets($input, $output, $directory);
         }
 
         $question = new ConfirmationQuestion('Setup and create a SQLite database? ', false);
@@ -112,7 +117,11 @@ class CreatePluginSkeletonCommand extends Command
         $output->writeln('<comment>Your plugin is ready in folder ' . $directory . '/</comment>');
     }
 
-    protected function interact(InputInterface $input, OutputInterface $output)
+    /**
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     */
+    protected function interact(InputInterface $input, OutputInterface $output) : void
     {
         $output->writeln('<comment>We will guide you trough the installation.</comment>');
         $output->writeln('');
@@ -172,7 +181,7 @@ class CreatePluginSkeletonCommand extends Command
      * @param string $directory
      * @return void
      */
-    protected function verifyPluginDoesntExist(string $directory) : void
+    private function verifyPluginDoesntExist(string $directory) : void
     {
         if ((is_dir($directory) || is_file($directory)) && $directory != getcwd()) {
             throw new \RuntimeException('Plugin already exists');
@@ -183,7 +192,7 @@ class CreatePluginSkeletonCommand extends Command
      * @param InputInterface $input
      * @return string
      */
-    protected function getVersion(InputInterface $input) : string
+    private function getVersion(InputInterface $input) : string
     {
         if ($input->getOption('dev')) {
             return 'develop';
@@ -195,7 +204,7 @@ class CreatePluginSkeletonCommand extends Command
     /**
      * @return string
      */
-    protected function findComposer() : string
+    private function findComposer() : string
     {
         if (file_exists(getcwd() . '/composer.phar')) {
             return '"' . PHP_BINARY . '" composer.phar';
@@ -268,7 +277,7 @@ class CreatePluginSkeletonCommand extends Command
     /**
      * @return string
      */
-    public function getNamespace() : string
+    private function getNamespace() : string
     {
         return Strings::toPascalCase($this->vendor) . '\\' . Strings::toPascalCase($this->name);
     }
@@ -277,7 +286,7 @@ class CreatePluginSkeletonCommand extends Command
      * @param string $directory
      * @return string
      */
-    protected static function getSrcFolder(string $directory) : string
+    private static function getSrcFolder(string $directory) : string
     {
         return $directory . DIRECTORY_SEPARATOR . 'src' . DIRECTORY_SEPARATOR;
     }
@@ -347,7 +356,7 @@ class CreatePluginSkeletonCommand extends Command
      * @param $commands
      * @return array
      */
-    protected function passOptionsToCommand(InputInterface $input, $commands) : array
+    private function passOptionsToCommand(InputInterface $input, $commands) : array
     {
         if ($input->getOption('no-ansi')) {
             $commands = array_map(function ($value) {
@@ -367,7 +376,7 @@ class CreatePluginSkeletonCommand extends Command
     /**
      * @param OutputInterface $output
      */
-    protected function printWelcomeMessage(OutputInterface $output) : void
+    private function printWelcomeMessage(OutputInterface $output) : void
     {
         $output->writeln('<bg=green>                                        </>');
         $output->writeln('<bg=green;fg=black>  Welcome to Sylius Plugin Kickstarter  </>');
@@ -380,7 +389,7 @@ class CreatePluginSkeletonCommand extends Command
      * @param $composer
      * @param $directory
      */
-    protected function installPluginSkeleton(InputInterface $input, OutputInterface $output, $composer, $directory) : void
+    private function installPluginSkeleton(InputInterface $input, OutputInterface $output, $composer, $directory) : void
     {
         $output->writeln('<info>Installing Plugin Skeleton...</info>');
 
@@ -394,10 +403,9 @@ class CreatePluginSkeletonCommand extends Command
     /**
      * @param InputInterface $input
      * @param OutputInterface $output
-     * @param $composer
      * @param $directory
      */
-    protected function buildingAssets(InputInterface $input, OutputInterface $output, $composer, $directory) : void
+    private function buildingAssets(InputInterface $input, OutputInterface $output, $directory) : void
     {
         $output->writeln('<info>Building assets...</info>');
 
@@ -413,7 +421,7 @@ class CreatePluginSkeletonCommand extends Command
     /**
      * @param $packageName
      */
-    protected function validatePluginName($packageName) : void
+    private function validatePluginName($packageName) : void
     {
         if ( ! preg_match('{^[a-z0-9_.-]+/[a-z0-9_.-]+$}', $packageName)) {
             throw new \InvalidArgumentException('The package name ' . $packageName . ' is invalid, it should be lowercase and have a vendor name, a forward slash, and a package name, matching: [a-z0-9_.-]+/[a-z0-9_.-]+');
@@ -434,7 +442,7 @@ class CreatePluginSkeletonCommand extends Command
      * @param string $author
      * @return array
      */
-    protected function formatAuthors(string $author) : array
+    private function formatAuthors(string $author) : array
     {
         return [$this->parseAuthorString($author)];
     }
@@ -464,7 +472,7 @@ class CreatePluginSkeletonCommand extends Command
      * @param string $email
      * @return bool
      */
-    protected function isValidEmail(string $email) : bool
+    private function isValidEmail(string $email) : bool
     {
         // assume it's valid if we can't validate it
         if (!function_exists('filter_var')) {
@@ -484,7 +492,7 @@ class CreatePluginSkeletonCommand extends Command
      * @param string $composer
      * @param string $directory
      */
-    protected function composerDumpAutoload(InputInterface $input, OutputInterface $output, string $composer, string $directory) : void
+    private function composerDumpAutoload(InputInterface $input, OutputInterface $output, string $composer, string $directory) : void
     {
         $command = $composer . ' dump-autoload --optimize';
         $this->executeProcess($input, $output, $command, $directory);
@@ -496,7 +504,7 @@ class CreatePluginSkeletonCommand extends Command
      * @param $commands
      * @param $directory
      */
-    protected function executeProcess(InputInterface $input, OutputInterface $output, $commands, ?string $directory) : void
+    private function executeProcess(InputInterface $input, OutputInterface $output, $commands, ?string $directory) : void
     {
         $commands = is_array($commands) ? $commands : [$commands];
 
@@ -518,7 +526,7 @@ class CreatePluginSkeletonCommand extends Command
      * @param OutputInterface $output
      * @param $directory
      */
-    protected function createSQLiteDatabase(InputInterface $input, OutputInterface $output, $directory) : void
+    private function createSQLiteDatabase(InputInterface $input, OutputInterface $output, $directory) : void
     {
         $applicationDirectory = $directory . DIRECTORY_SEPARATOR . 'tests' . DIRECTORY_SEPARATOR . 'Application' . DIRECTORY_SEPARATOR;
         $this->filesystem->copy($applicationDirectory . '.env.dist', $applicationDirectory . '.env');
@@ -539,7 +547,12 @@ class CreatePluginSkeletonCommand extends Command
         $this->executeProcess($input, $output, $commands, $directory);
     }
 
-    private function loadFixtures(InputInterface $input, OutputInterface $output, string $directory)
+    /**
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @param string $directory
+     */
+    private function loadFixtures(InputInterface $input, OutputInterface $output, string $directory) : void
     {
         $commands = [
             '(cd tests/Application && bin/console sylius:fixtures:load -e test)'
@@ -548,7 +561,12 @@ class CreatePluginSkeletonCommand extends Command
         $this->executeProcess($input, $output, $commands, $directory);
     }
 
-    private function startServer(InputInterface $input, OutputInterface $output, string $directory)
+    /**
+     * @param InputInterface $input
+     * @param OutputInterface $output
+     * @param string $directory
+     */
+    private function startServer(InputInterface $input, OutputInterface $output, string $directory) : void
     {
         $commands = [
             '(cd tests/Application && bin/console server:run -d public -e test)'
