@@ -51,7 +51,7 @@ class CreatePluginSkeletonCommand extends Command
                 new InputOption('package-name', 'pn', InputOption::VALUE_REQUIRED, 'Name of the package'),
                 new InputOption('description', 'd', InputOption::VALUE_REQUIRED, 'The description of your plugin'),
                 new InputOption('author', 'a', InputOption::VALUE_REQUIRED, 'Author name of the plugin'),
-                //new InputOption('license', 'l', InputOption::VALUE_REQUIRED, 'License of package'),
+                new InputOption('license', 'l', InputOption::VALUE_REQUIRED, 'License of package'),
                 new InputOption('dev', null, InputOption::VALUE_NONE, 'Installs the latest "development" release'),
                 new InputOption('force', 'f', InputOption::VALUE_NONE, 'Forces install even if the directory already exists'),
             ]);
@@ -160,6 +160,12 @@ class CreatePluginSkeletonCommand extends Command
             $description = $dialog->ask($input, $output, $question);
             $input->setOption('description', $description);
         }
+
+        if (! $license = $input->getOption('license')) {
+            $question = new Question('License [<comment>'.$license.'</comment>]: ');
+            $license = $dialog->ask($input, $output, $question);
+            $input->setOption('license', $license);
+        }
     }
 
     /**
@@ -249,6 +255,7 @@ class CreatePluginSkeletonCommand extends Command
         $composerFile['name'] = $input->getOption('package-name');
         $composerFile['authors'] = $this->formatAuthors($input->getOption('author'));
         $composerFile['description'] = $input->getOption('description');
+        $composerFile['license'] = $input->getOption('license');
         $composerFile['autoload']['psr-4'][$this->getNamespace() . '\\'] = 'src/';
         $composerFile['autoload']['psr-4']['Tests\\' . $this->getNamespace() . '\\'] = 'tests/';
 
