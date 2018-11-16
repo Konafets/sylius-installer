@@ -1,3 +1,9 @@
+<h1 align="center">
+
+[![Latest Stable Version](https://poser.pugx.org/konafets/sylius-installer/v/stable)](https://packagist.org/packages/konafets/sylius-installer) [![Total Downloads](https://poser.pugx.org/konafets/sylius-installer/downloads)](https://packagist.org/packages/konafets/sylius-installer) [![Latest Unstable Version](https://poser.pugx.org/konafets/sylius-installer/v/unstable)](https://packagist.org/packages/konafets/sylius-installer) [![License](https://poser.pugx.org/konafets/sylius-installer/license)](https://packagist.org/packages/konafets/sylius-installer)
+
+</h1>
+
 ## Overview
 
 Starting with Sylius and plugin development I read the guide on https://docs.sylius.com/en/latest/plugins/plugin-development-guide/naming.html about how to renaming the dummy plugin.
