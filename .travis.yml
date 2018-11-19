@@ -1,0 +1,18 @@
+language: php
+
+sudo: false
+
+php:
+  - 7.1
+  - 7.2
+
+cache:
+  directories:
+  - ~/.composer/cache/files
+
+install:
+  - composer install --no-progress --no-suggest
+
+script:
+  - vendor/bin/phpunit tests/Unit
+  - vendor/bin/phpspec run

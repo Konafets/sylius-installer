@@ -1,6 +1,6 @@
 <h1 align="center">
 
-[![Latest Stable Version](https://poser.pugx.org/konafets/sylius-installer/v/stable)](https://packagist.org/packages/konafets/sylius-installer) [![Total Downloads](https://poser.pugx.org/konafets/sylius-installer/downloads)](https://packagist.org/packages/konafets/sylius-installer) [![Latest Unstable Version](https://poser.pugx.org/konafets/sylius-installer/v/unstable)](https://packagist.org/packages/konafets/sylius-installer) [![License](https://poser.pugx.org/konafets/sylius-installer/license)](https://packagist.org/packages/konafets/sylius-installer)
+[![Latest Stable Version](https://poser.pugx.org/konafets/sylius-installer/v/stable)](https://packagist.org/packages/konafets/sylius-installer) [![Total Downloads](https://poser.pugx.org/konafets/sylius-installer/downloads)](https://packagist.org/packages/konafets/sylius-installer) [![Latest Unstable Version](https://poser.pugx.org/konafets/sylius-installer/v/unstable)](https://packagist.org/packages/konafets/sylius-installer) [![License](https://poser.pugx.org/konafets/sylius-installer/license)](https://packagist.org/packages/konafets/sylius-installer) [![Build Status](https://travis-ci.org/Konafets/sylius-installer.svg?branch=develop)](https://travis-ci.org/Konafets/sylius-installer)
 
 </h1>
 
