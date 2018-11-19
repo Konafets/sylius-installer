@@ -11,7 +11,8 @@
     ],
     "autoload": {
         "psr-4": {
-            "Konafets\\Installer\\Console\\": "src/"
+            "Konafets\\Installer\\Console\\": "src/",
+            "Konafets\\Tests\\": "tests/"
         }
     },
     "require": {
@@ -21,9 +22,14 @@
         "symfony/process": "^4.1",
         "nadar/php-composer-reader": "^1.0",
         "symfony/finder": "^4.1",
-        "anahkiasen/underscore-php": "^2.0"
+        "anahkiasen/underscore-php": "^2.0",
+        "mikey179/vfsStream": "^1.6"
     },
     "bin": [
         "sylius"
-    ]
+    ],
+    "require-dev": {
+        "phpunit/phpunit": "^7.4",
+        "phpspec/phpspec": "^5.1"
+    }
 }
