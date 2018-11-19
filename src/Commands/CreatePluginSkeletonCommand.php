@@ -133,7 +133,7 @@ final class CreatePluginSkeletonCommand extends BaseCommand
         list($this->vendor, $this->name) = $this->extractVendorAndPluginNameFromPackageName($packageName);
 
         $self = $this;
-        if ( ! $input->getOption('author')) {
+        if (! $input->getOption('author')) {
             $question = new Question('Author (Jane Doe <jane.doe@sylius.com>), n to skip: ');
             $question->setValidator(function ($answer) use ($self) {
                 if ($answer === 'n' || $answer === 'no') {
@@ -343,17 +343,17 @@ final class CreatePluginSkeletonCommand extends BaseCommand
      */
     private function validatePluginName($packageName) : void
     {
-        if ( ! preg_match('{^[a-z0-9_.-]+/[a-z0-9_.-]+$}', $packageName)) {
+        if (! preg_match('{^[a-z0-9_.-]+/[a-z0-9_.-]+$}', $packageName)) {
             throw new \InvalidArgumentException('The package name ' . $packageName . ' is invalid, it should be lowercase and have a vendor name, a forward slash, and a package name, matching: [a-z0-9_.-]+/[a-z0-9_.-]+');
         }
 
         list($vendor, $name) = $this->extractVendorAndPluginNameFromPackageName($packageName);
 
-        if ( ! Strings::startsWith($name, 'sylius')) {
+        if (! Strings::startsWith($name, 'sylius')) {
             throw new \InvalidArgumentException('The plugin name ' . $name . ' is invalid, it should be start with "sylius"');
         }
 
-        if ( ! Strings::endsWith($name, 'plugin')) {
+        if (! Strings::endsWith($name, 'plugin')) {
             throw new \InvalidArgumentException('The plugin name ' . $name . ' is invalid, it should be end with "plugin"');
         }
     }
@@ -428,9 +428,11 @@ final class CreatePluginSkeletonCommand extends BaseCommand
         $finder->files()->in($applicationDirectory)->ignoreDotFiles(false)->name('.env');
 
         foreach ($finder as $file) {
-            self::writeFile(['DATABASE_URL=mysql://root@127.0.0.1/sylius_%kernel.environment%?serverVersion=5.5'],
+            self::writeFile(
+                ['DATABASE_URL=mysql://root@127.0.0.1/sylius_%kernel.environment%?serverVersion=5.5'],
                 ["#DATABASE_URL=mysql://root@127.0.0.1/sylius_%kernel.environment%?serverVersion=5.5\nDATABASE_URL=sqlite:///%kernel.project_dir%/var/data.db"],
-                $file);
+                $file
+            );
         }
 
         $commands = [
