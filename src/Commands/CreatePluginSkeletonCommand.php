@@ -1,8 +1,7 @@
-<?php namespace Konafets\Installer\Console;
+<?php namespace Konafets\Installer\Console\Commands;
 
 use Exception;
 use Nadar\PhpComposerReader\ComposerReader;
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -12,10 +11,9 @@ use Symfony\Component\Console\Question\Question;
 use Symfony\Component\Filesystem\Filesystem;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
-use Symfony\Component\Process\Process;
 use Underscore\Types\Strings;
 
-final class CreatePluginSkeletonCommand extends Command
+final class CreatePluginSkeletonCommand extends BaseCommand
 {
 
     const ACME_NAMESPACE = 'Acme\SyliusExamplePlugin';
@@ -47,25 +45,14 @@ final class CreatePluginSkeletonCommand extends Command
     {
         $this
             ->setName('new:plugin')
-            ->setDescription('Creates the plugin skeleton')
+            ->setDescription('Installs and customize the plugin skeleton')
             ->setDefinition([
                 new InputOption('package-name', 'pn', InputOption::VALUE_REQUIRED, 'Name of the package'),
                 new InputOption('description', 'd', InputOption::VALUE_REQUIRED, 'The description of your plugin'),
                 new InputOption('author', 'a', InputOption::VALUE_REQUIRED, 'Author name of the plugin'),
                 new InputOption('license', 'l', InputOption::VALUE_REQUIRED, 'License of package'),
-                new InputOption('dev', null, InputOption::VALUE_NONE, 'Installs the latest "development" release'),
                 new InputOption('force', 'f', InputOption::VALUE_NONE, 'Forces install even if the directory already exists'),
             ]);
-    }
-
-    /**
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     */
-    protected function initialize(InputInterface $input, OutputInterface $output) : void
-    {
-        $this->printWelcomeMessage($output);
-        $output->writeln('');
     }
 
     /**
@@ -79,10 +66,10 @@ final class CreatePluginSkeletonCommand extends Command
         /** @var QuestionHelper $questionHelper */
         $dialog = $this->getHelper('question');
 
-        $directory = $this->makePluginFolderName();
+        $directory = $this->makeProjectFolderName($this->vendor, $this->name);
 
         if (! $input->getOption('force')) {
-            $this->verifyPluginDoesntExist($directory);
+            $this->verifyProjectFolderDoesNotExist($directory);
         }
 
         $composer = $this->findComposer();
@@ -94,7 +81,6 @@ final class CreatePluginSkeletonCommand extends Command
         $this->composerDumpAutoload($input, $output, $composer, $directory);
 
         $question = new ConfirmationQuestion('Install and build assets? ', false);
-
         if ($dialog->ask($input, $output, $question)) {
             $this->buildingAssets($input, $output, $directory);
         }
@@ -171,46 +157,10 @@ final class CreatePluginSkeletonCommand extends Command
         }
 
         if (! $license = $input->getOption('license')) {
-            $question = new Question('License [<comment>'.$license.'</comment>]: ');
+            $question = new Question('License: ');
             $license = $dialog->ask($input, $output, $question);
             $input->setOption('license', $license);
         }
-    }
-
-    /**
-     * @param string $directory
-     * @return void
-     */
-    private function verifyPluginDoesntExist(string $directory) : void
-    {
-        if ((is_dir($directory) || is_file($directory)) && $directory != getcwd()) {
-            throw new \RuntimeException('Plugin already exists');
-        }
-    }
-
-    /**
-     * @param InputInterface $input
-     * @return string
-     */
-    private function getVersion(InputInterface $input) : string
-    {
-        if ($input->getOption('dev')) {
-            return 'develop';
-        }
-
-        return 'master';
-    }
-
-    /**
-     * @return string
-     */
-    private function findComposer() : string
-    {
-        if (file_exists(getcwd() . '/composer.phar')) {
-            return '"' . PHP_BINARY . '" composer.phar';
-        }
-
-        return 'composer';
     }
 
     /**
@@ -229,11 +179,13 @@ final class CreatePluginSkeletonCommand extends Command
     }
 
     /**
+     * @param string $vendor
+     * @param string $name
      * @return string
      */
-    private function makePluginFolderName() : string
+    private function makeProjectFolderName(string $vendor, string $name) : string
     {
-        return Strings::toPascalCase($this->vendor) . Strings::toPascalCase($this->name);
+        return Strings::toPascalCase($vendor) . Strings::toPascalCase($name);
     }
 
     /**
@@ -353,38 +305,6 @@ final class CreatePluginSkeletonCommand extends Command
 
     /**
      * @param InputInterface $input
-     * @param $commands
-     * @return array
-     */
-    private function passOptionsToCommand(InputInterface $input, $commands) : array
-    {
-        if ($input->getOption('no-ansi')) {
-            $commands = array_map(function ($value) {
-                return $value . ' --no-ansi';
-            }, $commands);
-        }
-
-        if ($input->getOption('quiet')) {
-            $commands = array_map(function ($value) {
-                return $value . ' --quiet';
-            }, $commands);
-        }
-
-        return $commands;
-    }
-
-    /**
-     * @param OutputInterface $output
-     */
-    private function printWelcomeMessage(OutputInterface $output) : void
-    {
-        $output->writeln('<bg=green>                                        </>');
-        $output->writeln('<bg=green;fg=black>  Welcome to Sylius Plugin Kickstarter  </>');
-        $output->writeln('<bg=green>                                        </>');
-    }
-
-    /**
-     * @param InputInterface $input
      * @param OutputInterface $output
      * @param $composer
      * @param $directory
@@ -478,10 +398,6 @@ final class CreatePluginSkeletonCommand extends Command
         if (!function_exists('filter_var')) {
             return true;
         }
-        // php <5.3.3 has a very broken email validator, so bypass checks
-        if (PHP_VERSION_ID < 50303) {
-            return true;
-        }
 
         return false !== filter_var($email, FILTER_VALIDATE_EMAIL);
     }
@@ -496,29 +412,6 @@ final class CreatePluginSkeletonCommand extends Command
     {
         $command = $composer . ' dump-autoload --optimize';
         $this->executeProcess($input, $output, $command, $directory);
-    }
-
-    /**
-     * @param InputInterface $input
-     * @param OutputInterface $output
-     * @param $commands
-     * @param $directory
-     */
-    private function executeProcess(InputInterface $input, OutputInterface $output, $commands, ?string $directory) : void
-    {
-        $commands = is_array($commands) ? $commands : [$commands];
-
-        $commands = $this->passOptionsToCommand($input, $commands);
-
-        $process = new Process(implode(' && ', $commands), $directory, null, null, null);
-
-        if ('\\' !== DIRECTORY_SEPARATOR && file_exists('/dev/tty') && is_readable('/dev/tty')) {
-            $process->setTty(true);
-        }
-
-        $process->run(function ($line) use ($output) {
-            $output->write($line);
-        });
     }
 
     /**

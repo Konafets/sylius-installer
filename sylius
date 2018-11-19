@@ -8,12 +8,12 @@ if (file_exists(__DIR__ . '/../../autoload.php')) {
 }
 
 $app = new Symfony\Component\Console\Application('Sylius Installer', '0.0.1');
-$app->add(new Konafets\Installer\Console\CreatePluginSkeletonCommand);
+$app->add(new Konafets\Installer\Console\Commands\CreatePluginSkeletonCommand);
 
 try {
     $app->run();
 } catch (Exception $e) {
-
+    throw new Exception($e);
 }
 
 
