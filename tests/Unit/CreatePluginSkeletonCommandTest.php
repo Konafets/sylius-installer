@@ -47,6 +47,7 @@ class CreatePluginSkeletonCommandTest extends TestCase
      */
     public function makePluginFolderName()
     {
+        $this->markTestIncomplete();
         $reflection = new \ReflectionClass(get_class($this->command));
         $reflection->vendor = 'iron-man';
         $reflection->name = 'sylius-product-on-demand-plugin';
